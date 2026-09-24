@@ -111,42 +111,87 @@ function getRatingVisitorToken(){
   }
   return token;
 }
-function getSavedRating(){return Number(localStorage.getItem('sagar_site_rating_value')||0)}
-function setRatingStars(value){document.querySelectorAll('.rating-star').forEach(b=>b.classList.toggle('active',Number(b.dataset.rating)<=Number(value||0)))}
+function getSavedRating(){const n=Number(localStorage.getItem('sagar_site_rating_value')||0);return n>=1&&n<=5?n:0}
+function setRatingStars(value){
+  const v=Number(value||0);
+  document.querySelectorAll('.rating-star').forEach(b=>{
+    const n=Number(b.dataset.rating||0),active=n<=v&&v>0;
+    b.classList.toggle('active',active);
+    b.setAttribute('aria-checked',n===v?'true':'false');
+  });
+}
 function renderRatingSummary(){
   if(!$('ratingAverage'))return;
   const avg=Number(ratingSummary.average||0),count=Number(ratingSummary.count||0);
   $('ratingAverage').textContent=avg.toFixed(1);
   $('ratingCount').textContent=count===0?'No ratings yet':count+' rating'+(count===1?'':'s');
-  const rounded=Math.round(avg);$('ratingSummaryStars').textContent='★'.repeat(rounded)+'☆'.repeat(5-rounded);
+  const rounded=Math.max(0,Math.min(5,Math.round(avg)));
+  $('ratingSummaryStars').textContent='★'.repeat(rounded)+'☆'.repeat(5-rounded);
   if($('ovRating'))$('ovRating').textContent=avg.toFixed(1)+' / 5';
   if($('ovRatingCount'))$('ovRatingCount').textContent=count+' rating'+(count===1?'':'s');
 }
 async function loadRatingSummary(){
   try{
-    const {data,error}=await sb.rpc('get_site_rating_summary');if(error)throw error;
+    const {data,error}=await sb.rpc('get_site_rating_summary');
+    if(error)throw error;
     const row=Array.isArray(data)?data[0]:data;
     ratingSummary={average:Number(row?.average_rating||0),count:Number(row?.rating_count||0)};
     renderRatingSummary();
   }catch(e){console.warn('Rating summary unavailable:',errMsg(e));}
 }
+function chooseRating(value){
+  const n=Number(value);
+  if(!(n>=1&&n<=5))return;
+  selectedRating=n;
+  setRatingStars(n);
+  const submit=$('submitRating');
+  if(submit)submit.disabled=false;
+  const msg=$('ratingMessage');
+  if(msg){msg.textContent=n+' star'+(n===1?'':'s')+' selected. Tap Submit Rating.';msg.className='rating-message'}
+}
 function initRatingUi(){
-  const saved=getSavedRating();if(saved){selectedRating=saved;setRatingStars(saved);$('submitRating').disabled=false;$('ratingMessage').textContent='Your rating: '+saved+' star'+(saved===1?'':'s')+'. You can change it.'}
-  document.querySelectorAll('.rating-star').forEach(btn=>{
-    btn.addEventListener('mouseenter',()=>setRatingStars(Number(btn.dataset.rating)));
-    btn.addEventListener('focus',()=>setRatingStars(Number(btn.dataset.rating)));
-    btn.addEventListener('click',()=>{selectedRating=Number(btn.dataset.rating);setRatingStars(selectedRating);$('submitRating').disabled=false;$('ratingMessage').textContent=selectedRating+' star'+(selectedRating===1?'':'s')+' selected.';$('ratingMessage').className='rating-message'});
+  const stars=$('ratingStars'),submit=$('submitRating');
+  if(!stars||!submit)return;
+  const saved=getSavedRating();
+  if(saved){
+    selectedRating=saved;setRatingStars(saved);submit.disabled=false;
+    $('ratingMessage').textContent='Your current rating is '+saved+' star'+(saved===1?'':'s')+'. You can change it.';
+  }else{setRatingStars(0);submit.disabled=true;}
+
+  // Event delegation makes both mouse and touch clicks reliable.
+  stars.addEventListener('click',e=>{
+    const btn=e.target.closest('.rating-star');
+    if(!btn)return;
+    e.preventDefault();
+    chooseRating(btn.dataset.rating);
   });
-  $('ratingStars').addEventListener('mouseleave',()=>setRatingStars(selectedRating||getSavedRating()));
-  $('submitRating').addEventListener('click',async()=>{
-    if(!(selectedRating>=1&&selectedRating<=5))return;
-    const btn=$('submitRating');btn.disabled=true;$('ratingMessage').textContent='Saving rating...';$('ratingMessage').className='rating-message';
+  stars.addEventListener('pointerover',e=>{const btn=e.target.closest('.rating-star');if(btn&&e.pointerType!=='touch')setRatingStars(Number(btn.dataset.rating));});
+  stars.addEventListener('pointerleave',()=>setRatingStars(selectedRating||getSavedRating()));
+  stars.addEventListener('keydown',e=>{
+    const btn=e.target.closest('.rating-star');if(!btn)return;
+    if(e.key==='Enter'||e.key===' '){e.preventDefault();chooseRating(btn.dataset.rating);}
+  });
+
+  submit.addEventListener('click',async()=>{
+    if(!(selectedRating>=1&&selectedRating<=5)){
+      $('ratingMessage').textContent='Please choose 1–5 stars first.';
+      $('ratingMessage').className='rating-message error';
+      return;
+    }
+    submit.disabled=true;
+    $('ratingMessage').textContent='Saving rating...';$('ratingMessage').className='rating-message';
     try{
-      const {data,error}=await sb.rpc('submit_site_rating',{p_rating:selectedRating,p_visitor_token:getRatingVisitorToken()});if(error)throw error;
+      const {data,error}=await sb.rpc('submit_site_rating',{p_rating:selectedRating,p_visitor_token:getRatingVisitorToken()});
+      if(error)throw error;
       localStorage.setItem('sagar_site_rating_value',String(selectedRating));
-      const row=Array.isArray(data)?data[0]:data;ratingSummary={average:Number(row?.average_rating||0),count:Number(row?.rating_count||0)};renderRatingSummary();
+      const row=Array.isArray(data)?data[0]:data;
+      ratingSummary={average:Number(row?.average_rating||0),count:Number(row?.rating_count||0)};
+      renderRatingSummary();setRatingStars(selectedRating);
       $('ratingMessage').textContent='Thank you! Your rating has been saved.';$('ratingMessage').className='rating-message success';
-    }catch(e){$('ratingMessage').textContent='Could not save rating. Run the rating SQL in Supabase first.';$('ratingMessage').className='rating-message error';console.error(e)}finally{btn.disabled=false}
+    }catch(e){
+      $('ratingMessage').textContent='Rating could not be saved. Please try again.';$('ratingMessage').className='rating-message error';
+      console.error('Rating save failed',e);
+    }finally{submit.disabled=false;}
   });
 }
 
