@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1000" viewBox="0 0 1200 1000">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#dff1eb"/><stop offset="1" stop-color="#b8d9cf"/></linearGradient></defs>
+<rect width="1200" height="1000" fill="url(#g)"/>
+<circle cx="600" cy="390" r="150" fill="#3f9279" opacity=".92"/>
+<path d="M270 900c30-210 150-325 330-325s300 115 330 325" fill="#3f9279" opacity=".92"/>
+<text x="600" y="950" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#2f6f5d">Replace with your profile photo: assets/profile/profile.jpg</text>
+</svg>
