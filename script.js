@@ -39,7 +39,7 @@ const DEFAULT_SITE={
  ]
 };
 const DEFAULT_FINANCE={banks:[],transactions:[]};
-let site=clone(DEFAULT_SITE),finance=clone(DEFAULT_FINANCE),editingTx=null,currentUser=null,siteRowId=null;
+let site=clone(DEFAULT_SITE),finance=clone(DEFAULT_FINANCE),editingTx=null,currentUser=null,siteRowId=null,ratingSummary={average:0,count:0},selectedRating=0;
 
 function errMsg(err){return err?.message||String(err||'Unknown error')}
 function openModal(id){$(id).classList.add('open')}
@@ -101,6 +101,55 @@ async function isAdminSession(){
 }
 
 /* Login / Admin */
+/* Public website rating */
+function getRatingVisitorToken(){
+  const key='sagar_site_rating_token';
+  let token=localStorage.getItem(key);
+  if(!token){
+    token=(globalThis.crypto&&crypto.randomUUID)?crypto.randomUUID():('xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx').replace(/[xy]/g,c=>{const r=Math.random()*16|0,v=c==='x'?r:(r&3|8);return v.toString(16)});
+    localStorage.setItem(key,token);
+  }
+  return token;
+}
+function getSavedRating(){return Number(localStorage.getItem('sagar_site_rating_value')||0)}
+function setRatingStars(value){document.querySelectorAll('.rating-star').forEach(b=>b.classList.toggle('active',Number(b.dataset.rating)<=Number(value||0)))}
+function renderRatingSummary(){
+  if(!$('ratingAverage'))return;
+  const avg=Number(ratingSummary.average||0),count=Number(ratingSummary.count||0);
+  $('ratingAverage').textContent=avg.toFixed(1);
+  $('ratingCount').textContent=count===0?'No ratings yet':count+' rating'+(count===1?'':'s');
+  const rounded=Math.round(avg);$('ratingSummaryStars').textContent='★'.repeat(rounded)+'☆'.repeat(5-rounded);
+  if($('ovRating'))$('ovRating').textContent=avg.toFixed(1)+' / 5';
+  if($('ovRatingCount'))$('ovRatingCount').textContent=count+' rating'+(count===1?'':'s');
+}
+async function loadRatingSummary(){
+  try{
+    const {data,error}=await sb.rpc('get_site_rating_summary');if(error)throw error;
+    const row=Array.isArray(data)?data[0]:data;
+    ratingSummary={average:Number(row?.average_rating||0),count:Number(row?.rating_count||0)};
+    renderRatingSummary();
+  }catch(e){console.warn('Rating summary unavailable:',errMsg(e));}
+}
+function initRatingUi(){
+  const saved=getSavedRating();if(saved){selectedRating=saved;setRatingStars(saved);$('submitRating').disabled=false;$('ratingMessage').textContent='Your rating: '+saved+' star'+(saved===1?'':'s')+'. You can change it.'}
+  document.querySelectorAll('.rating-star').forEach(btn=>{
+    btn.addEventListener('mouseenter',()=>setRatingStars(Number(btn.dataset.rating)));
+    btn.addEventListener('focus',()=>setRatingStars(Number(btn.dataset.rating)));
+    btn.addEventListener('click',()=>{selectedRating=Number(btn.dataset.rating);setRatingStars(selectedRating);$('submitRating').disabled=false;$('ratingMessage').textContent=selectedRating+' star'+(selectedRating===1?'':'s')+' selected.';$('ratingMessage').className='rating-message'});
+  });
+  $('ratingStars').addEventListener('mouseleave',()=>setRatingStars(selectedRating||getSavedRating()));
+  $('submitRating').addEventListener('click',async()=>{
+    if(!(selectedRating>=1&&selectedRating<=5))return;
+    const btn=$('submitRating');btn.disabled=true;$('ratingMessage').textContent='Saving rating...';$('ratingMessage').className='rating-message';
+    try{
+      const {data,error}=await sb.rpc('submit_site_rating',{p_rating:selectedRating,p_visitor_token:getRatingVisitorToken()});if(error)throw error;
+      localStorage.setItem('sagar_site_rating_value',String(selectedRating));
+      const row=Array.isArray(data)?data[0]:data;ratingSummary={average:Number(row?.average_rating||0),count:Number(row?.rating_count||0)};renderRatingSummary();
+      $('ratingMessage').textContent='Thank you! Your rating has been saved.';$('ratingMessage').className='rating-message success';
+    }catch(e){$('ratingMessage').textContent='Could not save rating. Run the rating SQL in Supabase first.';$('ratingMessage').className='rating-message error';console.error(e)}finally{btn.disabled=false}
+  });
+}
+
 $('loginBtn').addEventListener('click',async()=>{try{if(await isAdminSession())await showAdmin();else openModal('loginModal')}catch(e){$('loginError').textContent=errMsg(e);openModal('loginModal')}});
 $('doLogin').addEventListener('click',async()=>{
   const email=$('loginUser').value.trim(),password=$('loginPass').value;
@@ -123,7 +172,7 @@ $('viewPublicBtn').addEventListener('click',showPublic);
 $('logoutBtn').addEventListener('click',async()=>{await sb.auth.signOut();currentUser=null;showPublic()});
 $('adminSide').addEventListener('click',e=>{const b=e.target.closest('button[data-page]');if(!b)return;document.querySelectorAll('.admin-side button').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('.admin-page').forEach(x=>x.classList.remove('active'));$('page-'+b.dataset.page).classList.add('active')});
 function renderAdminAll(){renderOverview();fillWebsiteEditor();renderProjectAdmin();renderCertAdmin();renderFinance();$('authUser').value=currentUser?.email||'';$('authPass').value=''}
-function renderOverview(){$('ovProjects').textContent=site.projects.length;$('ovCerts').textContent=site.certificates.length;$('ovTx').textContent=finance.transactions.length;$('ovBanks').textContent=finance.banks.length}
+function renderOverview(){$('ovProjects').textContent=site.projects.length;$('ovCerts').textContent=site.certificates.length;$('ovTx').textContent=finance.transactions.length;$('ovBanks').textContent=finance.banks.length;renderRatingSummary()}
 
 /* Website editor */
 const SITE_FIELDS=[['edBrand','brand'],['edProfileName','profileName'],['edProfileRole','profileRole'],['edProfilePhoto','profilePhoto'],['edKicker','kicker'],['edHero1','hero1'],['edHero2','hero2'],['edLead','lead'],['edAboutHeading','aboutHeading'],['edAboutIntro','aboutIntro'],['edFocusQuote','focusQuote'],['edFocusText','focusText'],['edCertHeading','certHeading'],['edCertIntro','certIntro'],['edContactKicker','contactKicker'],['edContactTitle','contactTitle'],['edContactText','contactText'],['edContactNote','contactNote'],['edFooter','footer'],['edNavAbout','navAbout'],['edNavProjects','navProjects'],['edNavCertificates','navCertificates'],['edNavSkills','navSkills'],['edNavJourney','navJourney'],['edNavContact','navContact'],['edProjectsHeading','projectsHeading'],['edProjectsIntro','projectsIntro'],['edSkillsHeading','skillsHeading'],['edSkillsIntro','skillsIntro'],['edJourneyHeading','journeyHeading'],['edJourneyIntro','journeyIntro'],['edStat1','stat1'],['edStat2','stat2'],['edStat3','stat3'],['edStat4','stat4'],['edSkill1Title','skill1Title'],['edSkill1Text','skill1Text'],['edSkill2Title','skill2Title'],['edSkill2Text','skill2Text'],['edSkill3Title','skill3Title'],['edSkill3Text','skill3Text'],['edJourney1Label','journey1Label'],['edJourney1Title','journey1Title'],['edJourney1Text','journey1Text'],['edJourney2Label','journey2Label'],['edJourney2Title','journey2Title'],['edJourney2Text','journey2Text'],['edJourney3Label','journey3Label'],['edJourney3Title','journey3Title'],['edJourney3Text','journey3Text'],['edJourney4Label','journey4Label'],['edJourney4Title','journey4Title'],['edJourney4Text','journey4Text']];
@@ -217,7 +266,7 @@ $('resetFinance').addEventListener('click',async()=>{if(!confirm('DELETE ALL Sup
 
 sb.auth.onAuthStateChange((_event,session)=>{currentUser=session?.user||null});
 async function init(){
-  try{renderPublic();resetTxForm();await loadPublicData();const {data:{session}}=await sb.auth.getSession();currentUser=session?.user||null;if(currentUser)$('loginUser').value=currentUser.email||''}
+  try{renderPublic();resetTxForm();initRatingUi();await Promise.all([loadPublicData(),loadRatingSummary()]);const {data:{session}}=await sb.auth.getSession();currentUser=session?.user||null;if(currentUser)$('loginUser').value=currentUser.email||''}
   catch(e){console.error('Supabase initialization error',e);renderPublic()}
 }
 init();
