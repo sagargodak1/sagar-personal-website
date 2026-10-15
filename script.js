@@ -214,10 +214,10 @@ async function showAdmin(){
 }
 function showPublic(){$('adminApp').classList.add('hidden');$('publicApp').classList.remove('hidden');renderPublic();window.scrollTo(0,0)}
 $('viewPublicBtn').addEventListener('click',showPublic);
-$('logoutBtn').addEventListener('click',async()=>{await sb.auth.signOut();currentUser=null;showPublic()});
+$('logoutBtn').addEventListener('click',async()=>{await sb.auth.signOut();currentUser=null;if(new URLSearchParams(location.search).get('hub')==='1'){$('adminApp').classList.add('hidden');$('publicApp').classList.add('hidden');$('hubLaunchScreen').classList.remove('hidden');$('hubLaunchStatus').textContent='Admin Login Required';$('hubLaunchLogin').classList.remove('hidden');openModal('loginModal')}else showPublic()});
 $('adminSide').addEventListener('click',e=>{const b=e.target.closest('button[data-page]');if(!b)return;document.querySelectorAll('.admin-side button').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('.admin-page').forEach(x=>x.classList.remove('active'));$('page-'+b.dataset.page).classList.add('active')});
 function renderAdminAll(){renderOverview();fillWebsiteEditor();renderProjectAdmin();renderCertAdmin();renderFinance();$('authUser').value=currentUser?.email||'';$('authPass').value=''}
-function renderOverview(){$('ovProjects').textContent=site.projects.length;$('ovCerts').textContent=site.certificates.length;$('ovTx').textContent=finance.transactions.length;$('ovBanks').textContent=finance.banks.length;renderRatingSummary()}
+function renderOverview(){$('ovProjects').textContent=site.projects.length;$('ovCerts').textContent=site.certificates.length;$('ovTx').textContent=finance.transactions.length;$('ovBanks').textContent=finance.banks.length;renderRatingSummary();renderHubDashboard()}
 
 /* Website editor */
 const SITE_FIELDS=[['edBrand','brand'],['edProfileName','profileName'],['edProfileRole','profileRole'],['edProfilePhoto','profilePhoto'],['edKicker','kicker'],['edHero1','hero1'],['edHero2','hero2'],['edLead','lead'],['edAboutHeading','aboutHeading'],['edAboutIntro','aboutIntro'],['edFocusQuote','focusQuote'],['edFocusText','focusText'],['edCertHeading','certHeading'],['edCertIntro','certIntro'],['edContactKicker','contactKicker'],['edContactTitle','contactTitle'],['edContactText','contactText'],['edContactNote','contactNote'],['edFooter','footer'],['edNavAbout','navAbout'],['edNavProjects','navProjects'],['edNavCertificates','navCertificates'],['edNavSkills','navSkills'],['edNavJourney','navJourney'],['edNavContact','navContact'],['edProjectsHeading','projectsHeading'],['edProjectsIntro','projectsIntro'],['edSkillsHeading','skillsHeading'],['edSkillsIntro','skillsIntro'],['edJourneyHeading','journeyHeading'],['edJourneyIntro','journeyIntro'],['edStat1','stat1'],['edStat2','stat2'],['edStat3','stat3'],['edStat4','stat4'],['edSkill1Title','skill1Title'],['edSkill1Text','skill1Text'],['edSkill2Title','skill2Title'],['edSkill2Text','skill2Text'],['edSkill3Title','skill3Title'],['edSkill3Text','skill3Text'],['edJourney1Label','journey1Label'],['edJourney1Title','journey1Title'],['edJourney1Text','journey1Text'],['edJourney2Label','journey2Label'],['edJourney2Title','journey2Title'],['edJourney2Text','journey2Text'],['edJourney3Label','journey3Label'],['edJourney3Title','journey3Title'],['edJourney3Text','journey3Text'],['edJourney4Label','journey4Label'],['edJourney4Title','journey4Title'],['edJourney4Text','journey4Text']];
@@ -261,7 +261,42 @@ const money=n=>'Rs. '+Number(n||0).toLocaleString(undefined,{maximumFractionDigi
 function accountName(id){if(id==='cash')return 'Cash in Hand';const b=finance.banks.find(x=>String(x.id)===String(id));return b?b.name:'Unknown'}
 function updateAccountOptions(){const opts='<option value="cash">Cash in Hand</option>'+finance.banks.map(b=>`<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('');$('txAccount').innerHTML=opts;$('txBank').innerHTML=finance.banks.length?finance.banks.map(b=>`<option value="${esc(b.id)}">${esc(b.name)}</option>`).join(''):'<option value="">Add a bank first</option>'}
 function calc(){let cash=0,banks={},depDiff=0,lg={},lr={},todayIncome=0,todayExpense=0;finance.banks.forEach(b=>banks[b.id]=Number(b.openingBalance||0));const add=(acc,v)=>{if(acc==='cash')cash+=v;else banks[acc]=(banks[acc]||0)+v};for(const t of finance.transactions){const a=Number(t.amount||0);if(t.type==='income')add(t.account,a);if(t.type==='expense')add(t.account,-a);if(t.type==='bank_deposit'){cash-=a;banks[t.bank]=(banks[t.bank]||0)+a;if(Number(t.expected)>0)depDiff+=a-Number(t.expected)}if(t.type==='bank_withdrawal'){banks[t.bank]=(banks[t.bank]||0)-a;cash+=a}if(t.type==='loan_given'){add(t.account,-a);lg[t.party||'Unspecified']=(lg[t.party||'Unspecified']||0)+a}if(t.type==='loan_given_return'){add(t.account,a);lg[t.party||'Unspecified']=(lg[t.party||'Unspecified']||0)-a}if(t.type==='loan_received'){add(t.account,a);lr[t.party||'Unspecified']=(lr[t.party||'Unspecified']||0)+a}if(t.type==='loan_received_repay'){add(t.account,-a);lr[t.party||'Unspecified']=(lr[t.party||'Unspecified']||0)-a}if(t.type==='adjustment')add(t.account,a*Number(t.sign||1));if(t.date===todayISO()){if(t.type==='income')todayIncome+=a;if(t.type==='expense')todayExpense+=a}}return{cash,banks,depDiff,lg,lr,todayIncome,todayExpense}}
-function renderFinance(){if(!Array.isArray(finance.banks))finance.banks=[];if(!Array.isArray(finance.transactions))finance.transactions=[];updateAccountOptions();renderSummary();renderBanks();renderLoans();renderHistory();if(!$('txDate').value)$('txDate').value=todayISO();updateTxFields()}
+function renderHubDashboard(){
+  if(!$('hubTotalBalance'))return;
+  const v=calc();
+  const bankTotal=Object.values(v.banks).reduce((a,b)=>a+Number(b||0),0);
+  const given=Object.values(v.lg).reduce((a,b)=>a+Math.max(0,Number(b||0)),0);
+  const received=Object.values(v.lr).reduce((a,b)=>a+Math.max(0,Number(b||0)),0);
+  $('hubTotalBalance').textContent=money(v.cash+bankTotal);
+  $('hubCash').textContent=money(v.cash);
+  $('hubBank').textContent=money(bankTotal);
+  $('hubToReceive').textContent=money(given);
+  $('hubToPay').textContent=money(received);
+  $('hubTodayFlow').textContent=money(v.todayIncome)+' / '+money(v.todayExpense);
+  $('hubDate').textContent=new Date().toLocaleDateString('en-NP',{weekday:'short',year:'numeric',month:'short',day:'numeric'});
+  $('hubBankList').innerHTML=finance.banks.length?finance.banks.map(b=>
+    `<div class="hub-bank"><div><span class="hub-bank-icon">▦</span><strong>${esc(b.name)}</strong></div><b>${money(v.banks[b.id]||0)}</b></div>`
+  ).join(''):'<div class="hub-empty">No banks added yet. Add a bank under Personal Transactions.</div>';
+  // Dashboard reports are derived from existing finance transactions, never duplicate balances.
+  const balanceItems=[{name:'Cash in Hand',amount:v.cash},...finance.banks.map(b=>({name:b.name,amount:Number(v.banks[b.id]||0)}))];
+  const maxBalance=Math.max(1,...balanceItems.map(x=>Math.max(0,x.amount)));
+  $('hubBalanceBars').innerHTML=balanceItems.map(item=>`<div class="hub-bar-item"><div class="hub-bar-label"><span>${esc(item.name)}</span><b>${money(item.amount)}</b></div><div class="hub-bar-track"><span style="width:${Math.max(0,item.amount)/maxBalance*100}%"></span></div></div>`).join('')||'<div class="hub-empty">No account balances yet.</div>';
+  const personList=(obj)=>Object.entries(obj).filter(([,sum])=>Number(sum)>0.009).sort((a,b)=>b[1]-a[1]).map(([name,amount])=>`<div class="hub-party"><span>${esc(name)}</span><strong>${money(amount)}</strong></div>`).join('')||'<div class="hub-empty">No outstanding loans.</div>';
+  $('hubDebtors').innerHTML=personList(v.lg);
+  $('hubCreditors').innerHTML=personList(v.lr);
+  const recent=[...finance.transactions].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.id).localeCompare(String(a.id))).slice(0,6);
+  $('hubRecentTx').innerHTML=recent.length?recent.map(t=>{
+    const debit=['expense','loan_given','loan_received_repay','bank_deposit'].includes(t.type);
+    return `<div class="hub-transaction"><div><strong>${esc(TYPE_LABEL[t.type]||t.type)}</strong><small>${esc(t.date||'')} · ${esc(t.party||t.note||accountName(t.account||t.bank)||'Transaction')}</small></div><b class="${debit?'hub-out':'hub-in'}">${money(t.amount)}</b></div>`;
+  }).join(''):'<div class="hub-empty">No transactions recorded yet.</div>';
+}
+document.querySelectorAll('[data-hub-page]').forEach(btn=>btn.addEventListener('click',()=>{
+  const page=btn.dataset.hubPage;
+  const nav=document.querySelector(`#adminSide button[data-page="${page}"]`);
+  if(nav)nav.click();
+}));
+
+function renderFinance(){if(!Array.isArray(finance.banks))finance.banks=[];if(!Array.isArray(finance.transactions))finance.transactions=[];updateAccountOptions();renderSummary();renderBanks();renderLoans();renderHistory();renderHubDashboard();if(!$('txDate').value)$('txDate').value=todayISO();updateTxFields()}
 function renderSummary(){const c=calc(),bankTotal=Object.values(c.banks).reduce((a,b)=>a+b,0),lg=Object.values(c.lg).reduce((a,b)=>a+Math.max(0,b),0),lr=Object.values(c.lr).reduce((a,b)=>a+Math.max(0,b),0);$('cashBalance').textContent=money(c.cash);$('bankTotal').textContent=money(bankTotal);$('loanGivenTotal').textContent=money(lg);$('loanReceivedTotal').textContent=money(lr);$('depositDifference').textContent=(c.depDiff>0?'+':'')+money(c.depDiff);$('depositDiffNote').textContent=c.depDiff>0?'Over-deposited; reduce a future deposit to adjust':c.depDiff<0?'Short-deposited; add the difference later':'Actual − expected';$('todayIncome').textContent=money(c.todayIncome);$('todayExpense').textContent=money(c.todayExpense);$('txCount').textContent=finance.transactions.length}
 function renderBanks(){$('bankList').innerHTML=finance.banks.length?finance.banks.map(b=>`<div class="bank-row"><div><strong>${esc(b.name)}</strong><div class="muted" style="font-size:12px">Current balance</div></div><div style="display:flex;align-items:center;gap:8px"><strong>${money(calc().banks[b.id]||0)}</strong><button class="icon-btn" data-del-bank="${esc(b.id)}">Delete</button></div></div>`).join(''):'<div class="muted">No bank added yet.</div>';document.querySelectorAll('[data-del-bank]').forEach(b=>b.addEventListener('click',()=>deleteBank(b.dataset.delBank)))}
 async function deleteBank(id){if(finance.transactions.some(t=>String(t.account)===String(id)||String(t.bank)===String(id)))return alert('This bank is already used in transactions, so it cannot be deleted.');if(!confirm('Delete this bank?'))return;try{const {error}=await sb.from('banks').delete().eq('id',id);if(error)throw error;await loadPrivateData();renderFinance();renderOverview()}catch(e){alert('Bank delete failed: '+errMsg(e))}}
@@ -309,9 +344,56 @@ $('saveAuth').addEventListener('click',async()=>{const email=$('authUser').value
 $('resetSite').addEventListener('click',async()=>{if(!confirm('Reset website content, projects and certificate entries to package defaults in Supabase?'))return;try{const backup={site:clone(DEFAULT_SITE),finance:clone(finance)};const currentFinance=clone(finance);await sb.from('projects').delete().gt('id',0);await sb.from('certificates').delete().gt('id',0);let r=await sb.from('site_settings').upsert({setting_key:'main',full_name:DEFAULT_SITE.content.profileName,headline:DEFAULT_SITE.content.profileRole,about:DEFAULT_SITE.content.aboutIntro,profile_image_url:DEFAULT_SITE.content.profilePhoto,content:DEFAULT_SITE.content,visibility:DEFAULT_SITE.visibility},{onConflict:'setting_key'});if(r.error)throw r.error;r=await sb.from('projects').insert(DEFAULT_SITE.projects.map((p,i)=>({project_no:p.no,title:p.title,description:p.desc,tags:p.tags,display_order:i+1,is_active:true})));if(r.error)throw r.error;r=await sb.from('certificates').insert(DEFAULT_SITE.certificates.map((c,i)=>({title:c.title,issuer:c.issuer,year_text:c.year,image_url:c.image,certificate_url:c.pdf||null,display_order:i+1,is_active:true})));if(r.error)throw r.error;finance=currentFinance;await loadPublicData();renderAdminAll();alert('Website reset to defaults in Supabase.')}catch(e){alert('Reset failed: '+errMsg(e))}});
 $('resetFinance').addEventListener('click',async()=>{if(!confirm('DELETE ALL Supabase finance data (transactions and banks)? This cannot be undone unless you have a backup.'))return;try{let r=await sb.from('transactions').delete().gt('id',0);if(r.error)throw r.error;r=await sb.from('banks').delete().gt('id',0);if(r.error)throw r.error;finance=clone(DEFAULT_FINANCE);resetTxForm();renderAdminAll();alert('All finance data deleted from Supabase.')}catch(e){alert('Delete failed: '+errMsg(e))}});
 
-sb.auth.onAuthStateChange((_event,session)=>{currentUser=session?.user||null});
-async function init(){
-  try{renderPublic();resetTxForm();initRatingUi();await Promise.all([loadPublicData(),loadRatingSummary()]);const {data:{session}}=await sb.auth.getSession();currentUser=session?.user||null;if(currentUser)$('loginUser').value=currentUser.email||''}
-  catch(e){console.error('Supabase initialization error',e);renderPublic()}
+
+/* Sagar Hub: new owner-only diary and tasks data. Database tables use Supabase RLS. */
+let diaryRecords=[],taskRecords=[],editingDiary=null;
+const hubIso=()=>new Date().toLocaleDateString('en-CA');
+function hubMsg(id,value){const el=$(id);if(el)el.textContent=value}
+async function loadHubRecords(){
+ const [d,t]=await Promise.all([sb.from('personal_diary').select('*').order('work_date',{ascending:false}).order('created_at',{ascending:false}),sb.from('personal_tasks').select('*').order('due_at',{ascending:true})]);
+ if(d.error||t.error){hubMsg('diaryMessage','Setup required: run PRIVATE_HUB_SQL.sql in your Personal Website Supabase project. '+errMsg(d.error||t.error));hubMsg('taskMessage','Setup required: run PRIVATE_HUB_SQL.sql in Supabase. '+errMsg(d.error||t.error));return}
+ diaryRecords=d.data||[];taskRecords=t.data||[];renderDiary();renderTasks();renderHubTaskCount();
 }
+function renderDiary(){const filter=$('diaryFilter').value;const rows=diaryRecords.filter(x=>!filter||x.work_date===filter);$('diaryList').innerHTML=rows.length?rows.map(x=>`<div class="hub-entry"><div><strong>${esc(x.title)}</strong><div class="muted">${esc(x.work_date)} · ${esc(x.status)}</div><p>${esc(x.details||'')}</p></div><div class="admin-actions"><button class="icon-btn" data-diary-edit="${esc(x.id)}">Edit</button><button class="icon-btn" data-diary-del="${esc(x.id)}">Delete</button></div></div>`).join(''):'<p class="muted">No diary entries.</p>'}
+$('diaryFilter').addEventListener('input',renderDiary);
+$('cancelDiary').addEventListener('click',()=>{editingDiary=null;$('diaryTitle').value='';$('diaryDetails').value='';$('diaryDate').value=hubIso();$('diaryStatus').value='done';hubMsg('diaryMessage','')});
+$('saveDiary').addEventListener('click',async()=>{const title=$('diaryTitle').value.trim(),work_date=$('diaryDate').value,details=$('diaryDetails').value.trim(),status=$('diaryStatus').value;if(!title||!work_date)return hubMsg('diaryMessage','Date and title are required.');const payload={title,work_date,details,status};const q=editingDiary?sb.from('personal_diary').update(payload).eq('id',editingDiary):sb.from('personal_diary').insert(payload);const {error}=await q;if(error)return hubMsg('diaryMessage',errMsg(error));$('cancelDiary').click();await loadHubRecords();hubMsg('diaryMessage','Saved to Supabase.')});
+$('diaryList').addEventListener('click',async e=>{const edit=e.target.closest('[data-diary-edit]'),del=e.target.closest('[data-diary-del]');if(edit){const x=diaryRecords.find(v=>String(v.id)===edit.dataset.diaryEdit);if(!x)return;editingDiary=x.id;$('diaryDate').value=x.work_date;$('diaryTitle').value=x.title;$('diaryDetails').value=x.details||'';$('diaryStatus').value=x.status;return}if(del&&confirm('Delete this diary entry?')){const {error}=await sb.from('personal_diary').delete().eq('id',del.dataset.diaryDel);if(error)alert(errMsg(error));else await loadHubRecords()}});
+function renderTasks(){const filter=$('taskFilter').value;const rows=taskRecords.filter(x=>filter==='all'||(filter==='done'?x.is_done:!x.is_done));const now=Date.now();$('taskList').innerHTML=rows.length?rows.map(x=>{const overdue=!x.is_done&&x.due_at&&new Date(x.due_at).getTime()<=now;return `<div class="hub-entry ${overdue?'hub-overdue':''}"><div><strong>${esc(x.title)}</strong><div class="muted">${esc(x.due_at?new Date(x.due_at).toLocaleString('en-NP'):'No due date')} · ${esc(x.priority)} ${overdue?'· DUE':''}</div><p>${esc(x.details||'')}</p></div><div class="admin-actions"><button class="icon-btn" data-task-toggle="${esc(x.id)}">${x.is_done?'Reopen':'Done'}</button><button class="icon-btn" data-task-delete="${esc(x.id)}">Delete</button></div></div>`}).join(''):'<p class="muted">No matching tasks.</p>'}
+function renderHubTaskCount(){const el=$('hubTaskCount');if(el)el.textContent=taskRecords.filter(x=>!x.is_done).length+' open';}
+$('taskFilter').addEventListener('change',renderTasks);$('refreshTasks').addEventListener('click',loadHubRecords);
+$('saveTask').addEventListener('click',async()=>{const title=$('taskTitle').value.trim(),details=$('taskDetails').value.trim(),dueInput=$('taskDue').value,priority=$('taskPriority').value;if(!title)return hubMsg('taskMessage','Task title is required.');const due_at=dueInput?new Date(dueInput).toISOString():null;const {error}=await sb.from('personal_tasks').insert({title,details,due_at,priority});if(error)return hubMsg('taskMessage',errMsg(error));$('taskTitle').value='';$('taskDetails').value='';$('taskDue').value='';await loadHubRecords();hubMsg('taskMessage','Reminder saved. App must be open to show device alerts.')});
+$('taskList').addEventListener('click',async e=>{const tog=e.target.closest('[data-task-toggle]'),del=e.target.closest('[data-task-delete]');if(tog){const x=taskRecords.find(v=>String(v.id)===tog.dataset.taskToggle);if(x){const {error}=await sb.from('personal_tasks').update({is_done:!x.is_done}).eq('id',x.id);if(error)alert(errMsg(error));else await loadHubRecords()}}if(del&&confirm('Delete this task?')){const {error}=await sb.from('personal_tasks').delete().eq('id',del.dataset.taskDelete);if(error)alert(errMsg(error));else await loadHubRecords()}});
+$('requestNotify').addEventListener('click',async()=>{if(!('Notification' in window))return hubMsg('taskMessage','Device notification is not supported here. Tasks remain visible in the app.');if(Notification.permission==='granted')return hubMsg('taskMessage','Alerts enabled while the app is open. iPhone background push requires a server push service.');try{const p=await Notification.requestPermission();hubMsg('taskMessage',p==='granted'?'Permission granted. Alerts work when the app is open.':'Permission not granted. Reminders are still saved.')}catch(e){hubMsg('taskMessage',errMsg(e))}});
+const notifiedTaskIds=new Set();
+function checkActiveReminders(){if(!currentUser||!('Notification' in window)||Notification.permission!=='granted'||document.hidden)return;for(const x of taskRecords){if(!x.is_done&&x.due_at&&new Date(x.due_at).getTime()<=Date.now()&&!notifiedTaskIds.has(x.id)){notifiedTaskIds.add(x.id);try{new Notification('Sagar Personal Hub',{body:x.title})}catch(e){}}}}
+setInterval(checkActiveReminders,60000);
+function renderLoanBook(){const c=calc();const renderMap=m=>{const arr=Object.entries(m).filter(([,v])=>v>0.009);return arr.length?arr.map(([name,amount])=>`<div class="hub-entry"><strong>${esc(name)}</strong><b>${money(amount)}</b></div>`).join(''):'<p class="muted">No outstanding amount.</p>'};$('loanBookGiven').innerHTML=renderMap(c.lg);$('loanBookReceived').innerHTML=renderMap(c.lr);const q=$('loanBookSearch').value.trim().toLowerCase();const tx=finance.transactions.filter(x=>x.type.startsWith('loan_')&&(!q||String(x.party||'').toLowerCase().includes(q)));$('loanBookRows').innerHTML=tx.map(x=>`<tr><td>${esc(x.date)}</td><td>${esc(x.party||'Unknown')}</td><td>${esc(TYPE_LABEL[x.type]||x.type)}</td><td>${money(x.amount)}</td><td>${esc(accountName(x.account))}</td><td>${esc(x.note||'')}</td></tr>`).join('')||'<tr><td colspan="6">No loan transactions.</td></tr>'}
+$('loanBookSearch').addEventListener('input',renderLoanBook);
+const originalShowAdmin=showAdmin;showAdmin=async function(){await originalShowAdmin();if(!$('adminApp').classList.contains('hidden')){$('hubLaunchScreen')?.classList.add('hidden');await loadHubRecords()}};
+const originalRenderFinance=renderFinance;renderFinance=function(){originalRenderFinance();renderLoanBook()};
+$('diaryDate').value=hubIso();
+if('serviceWorker' in navigator&&location.protocol!=='file:')window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(e=>console.warn('PWA unavailable',e)));
+
+sb.auth.onAuthStateChange((_event,session)=>{currentUser=session?.user||null});
+const HUB_LAUNCH=new URLSearchParams(location.search).get('hub')==='1';
+async function init(){
+  // Public landing is retained at the normal website URL. Installed PWA opens private hub.
+  if(HUB_LAUNCH){$('publicApp').classList.add('hidden');$('hubLaunchScreen').classList.remove('hidden')}
+  try{
+    renderPublic();resetTxForm();initRatingUi();
+    if(!HUB_LAUNCH){await Promise.all([loadPublicData(),loadRatingSummary()])}
+    const {data:{session}}=await sb.auth.getSession();currentUser=session?.user||null;
+    if(currentUser)$('loginUser').value=currentUser.email||'';
+    if(HUB_LAUNCH){
+      if(await isAdminSession()) await showAdmin();
+      else { $('hubLaunchStatus').textContent='Admin Login Required';$('hubLaunchLogin').classList.remove('hidden');openModal('loginModal') }
+    }
+  } catch(e){
+    console.error('Supabase initialization error',e);
+    if(HUB_LAUNCH){$('hubLaunchStatus').textContent='Unable to connect. Check your internet and retry login.';$('hubLaunchLogin').classList.remove('hidden')}
+    else renderPublic();
+  }
+}
+$('hubLaunchLogin').addEventListener('click',()=>openModal('loginModal'));
 init();

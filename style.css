@@ -202,3 +202,43 @@ body:before{display:none}
 #publicApp .rating-message.error{color:#b8493d}
 @media(max-width:900px){#publicApp .rating-card{grid-template-columns:1fr;text-align:center}.rating-copy p{max-width:650px;margin:auto}}
 @media(max-width:560px){#publicApp .rating-card{padding:26px 16px}.rating-star{width:42px!important;height:42px!important;font-size:35px!important}.rating-score strong{font-size:40px!important}}
+
+
+/* Sagar Personal Hub — Green & Cream Admin Overview, isolated from Public Website */
+#page-overview .hub-intro{display:flex;align-items:center;justify-content:space-between;gap:18px;border:1px solid #cce6da;border-radius:20px;padding:24px 26px;margin:18px 0;background:linear-gradient(105deg,#f0faf4,#fffdf2);color:#225b46}
+#page-overview .hub-intro h2{margin:3px 0 5px;font-size:31px;font-weight:800;color:#1d614b}
+#page-overview .hub-intro p{margin:0;color:#527e6e;font-size:14px}
+#page-overview .hub-eyebrow{letter-spacing:1.6px;font-weight:800;font-size:10px;color:#38876a}
+#page-overview .hub-date{font-weight:750;font-size:13px;border-radius:999px;padding:9px 13px;background:#fff;border:1px solid #d0e8db;white-space:nowrap}
+#page-overview .hub-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin:16px 0 20px}
+#page-overview .hub-kpi{padding:21px;border:1px solid #cce4d6;background:#fffdf7;color:#235c46;border-radius:16px;box-shadow:0 7px 24px rgba(10,74,51,.07);min-width:0}
+#page-overview .hub-kpi-primary{background:linear-gradient(135deg,#327b5e,#1c5e47);color:#fff;border-color:#2e765b}
+#page-overview .hub-kpi-label{font-size:12px;font-weight:750;letter-spacing:.3px;opacity:.85}
+#page-overview .hub-kpi strong{display:block;font-size:clamp(19px,2.1vw,28px);margin-top:7px;letter-spacing:-.6px;overflow-wrap:anywhere}
+#page-overview .hub-kpi small{display:block;margin-top:5px;font-size:11px;opacity:.75}
+#page-overview .hub-columns{display:grid;grid-template-columns:1fr 1.1fr;gap:15px}
+#page-overview .hub-panel{border-radius:17px;border:1px solid #cce4d6;background:#fffdf8;padding:18px;color:#285e4b;min-width:0}
+#page-overview .hub-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
+#page-overview .hub-panel h3{margin:0;font-size:17px;color:#245c46}
+#page-overview .hub-action{background:transparent;border:0;color:#207657;font-weight:750;font-size:12px;cursor:pointer}
+#page-overview .hub-bank,#page-overview .hub-transaction{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:13px 4px;border-bottom:1px solid #e3eee5}
+#page-overview .hub-bank:last-child,#page-overview .hub-transaction:last-child{border-bottom:0}
+#page-overview .hub-bank>div{display:flex;align-items:center;gap:8px;min-width:0}
+#page-overview .hub-bank strong,#page-overview .hub-transaction strong{font-size:13px;color:#2c654d}
+#page-overview .hub-bank b,#page-overview .hub-transaction b{white-space:nowrap;font-size:13px}
+#page-overview .hub-bank-icon{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:#e5f4e9}
+#page-overview .hub-transaction small{display:block;color:#709080;font-size:11px}
+#page-overview .hub-out{color:#b75b46}#page-overview .hub-in{color:#1b8060}
+#page-overview .hub-empty{padding:20px 4px;color:#658778;font-size:13px}
+#page-overview .hub-quick{display:flex;flex-wrap:wrap;gap:9px;margin:16px 0 23px}
+#page-overview .hub-quick button{border:1px solid #cce2d4;border-radius:11px;background:#edf8ef;color:#24654d;padding:11px 15px;font-weight:750;cursor:pointer}
+#page-overview .hub-quick button:hover{background:#deefdf}
+#page-overview .hub-existing-title{font-weight:800;font-size:18px;color:#fdf8e9;margin:25px 0 7px}
+@media(max-width:850px){#page-overview .hub-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}#page-overview .hub-columns{grid-template-columns:1fr}}
+@media(max-width:540px){#page-overview .hub-intro{padding:18px;align-items:flex-start;flex-direction:column}#page-overview .hub-intro h2{font-size:25px}#page-overview .hub-kpi{padding:14px}#page-overview .hub-kpi strong{font-size:19px}#page-overview .hub-kpi small{font-size:10px}#page-overview .hub-panel{padding:13px}#page-overview .hub-bank,#page-overview .hub-transaction{align-items:flex-start}#page-overview .hub-bank b,#page-overview .hub-transaction b{font-size:12px}}
+
+/* Personal Hub Diary, Tasks, Loan Book responsive surfaces */
+.hub-work-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.hub-work-grid .field{margin-bottom:12px}.hub-entry{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:13px 4px;border-bottom:1px solid #cfe6df;color:#285f50}.hub-entry p{font-size:13px;white-space:pre-wrap;margin:5px 0;color:#557e72}.hub-entry .muted{font-size:12px;color:#679687}.hub-entry strong{font-size:15px}.hub-entry .icon-btn{background:#e8f6f2;color:#24594b;border-color:#cfe6df}.hub-overdue{border-left:3px solid #d96348;padding-left:10px}#page-diary .admin-card,#page-tasks .admin-card,#page-loanbook .admin-card{background:#fff;color:#24594b;border-color:#cfe6df}#page-diary .field label,#page-tasks .field label,#page-loanbook .field label{color:#2f6f5d}#page-diary input,#page-diary select,#page-diary textarea,#page-tasks input,#page-tasks select,#page-tasks textarea,#page-loanbook input{background:#f4fbf8!important;color:#24594b!important;border:1px solid #b8d8ce!important;border-radius:8px;padding:11px;max-width:100%}#page-diary .btn.primary,#page-tasks .btn.primary{background:#3f9279;color:white;border:0}#page-loanbook table{background:#fff}#page-loanbook th{background:#3f9279;color:white}#page-loanbook td{color:#24594b}#page-loanbook .table-wrap{border-color:#cfe6df}@media(max-width:760px){.hub-work-grid{grid-template-columns:1fr}.hub-entry{flex-direction:column}.hub-entry .admin-actions{width:100%}#adminApp{padding-bottom:env(safe-area-inset-bottom)}.admin-shell{margin-top:12px}.admin-side{flex-wrap:nowrap;overflow-x:auto;position:sticky;top:75px;background:#e8f6f2;z-index:12}.admin-side button{color:#24594b}.admin-main{min-width:0}}
+
+/* PWA private hub & finance report enhancements */
+.hub-launch-screen{position:fixed;inset:0;z-index:100;background:linear-gradient(155deg,#e5f5ee,#fbfaf1);display:grid;place-items:center;padding:24px;color:#285c4b}.hub-launch-card{text-align:center;background:#fff;border:1px solid #cde9dc;border-radius:25px;box-shadow:0 25px 60px #27574322;padding:34px 25px;max-width:410px;width:100%}.hub-launch-icon{margin:auto auto 18px;width:76px;height:76px;display:grid;place-items:center;border-radius:23px;background:#3f9279;color:white;font-size:27px;font-weight:900}.hub-launch-card h1{margin:0;font-size:30px}.hub-launch-card p{color:#598477}.hub-launch-card span{display:block;font-size:13px;margin:18px 0;color:#627b70}.hub-launch-card .btn{background:#3f9279;border-color:#3f9279;color:#fff}.hub-report-heading{margin:22px 0 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;color:#28614e}.hub-report-heading h3{margin:0;font-size:19px}.hub-report-heading span{font-size:12px;color:#638b7c}.hub-balance-bars{display:grid;gap:16px;padding:8px 0}.hub-bar-label{display:flex;justify-content:space-between;gap:10px;font-size:13px;margin-bottom:6px}.hub-bar-label b{font-variant-numeric:tabular-nums}.hub-bar-track{height:11px;border-radius:99px;background:#e1f0e9;overflow:hidden}.hub-bar-track span{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#44a487,#71c5a4)}.hub-loan-title{font-weight:800;color:#347860;margin:12px 0 7px;font-size:13px}.hub-party{display:flex;gap:10px;justify-content:space-between;padding:10px 2px;border-bottom:1px solid #dceae2;font-size:13px}.hub-party strong{white-space:nowrap;font-variant-numeric:tabular-nums}@media(max-width:640px){.hub-report-heading{align-items:flex-start;flex-direction:column}.hub-party{font-size:12px}}
